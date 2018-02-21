@@ -1,17 +1,17 @@
 GEM
   remote: http://rubygems.org/
   specs:
-    mini_portile2 (2.2.0)
-    mustermann (1.0.1)
-    nokogiri (1.8.0)
-      mini_portile2 (~> 2.2.0)
-    rack (2.0.3)
-    rack-protection (2.0.0)
+    mini_portile2 (2.3.0)
+    mustermann (1.0.2)
+    nokogiri (1.8.2)
+      mini_portile2 (~> 2.3.0)
+    rack (2.0.4)
+    rack-protection (2.0.1)
       rack
-    sinatra (2.0.0)
+    sinatra (2.0.1)
       mustermann (~> 1.0)
       rack (~> 2.0)
-      rack-protection (= 2.0.0)
+      rack-protection (= 2.0.1)
       tilt (~> 2.0)
     tilt (2.0.8)
 
@@ -19,8 +19,11 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  nokogiri (= 1.8.0)
-  sinatra (= 2.0.0)
+  nokogiri (= 1.8.2)
+  sinatra (= 2.0.1)
+
+RUBY VERSION
+   ruby 2.4.1p111
 
 BUNDLED WITH
-   1.15.4
+   1.16.1
