@@ -5,13 +5,13 @@ GEM
     mustermann (1.0.2)
     nokogiri (1.8.2)
       mini_portile2 (~> 2.3.0)
-    rack (2.0.4)
-    rack-protection (2.0.1)
+    rack (2.0.5)
+    rack-protection (2.0.3)
       rack
-    sinatra (2.0.1)
+    sinatra (2.0.3)
       mustermann (~> 1.0)
       rack (~> 2.0)
-      rack-protection (= 2.0.1)
+      rack-protection (= 2.0.3)
       tilt (~> 2.0)
     tilt (2.0.8)
 
@@ -20,10 +20,10 @@ PLATFORMS
 
 DEPENDENCIES
   nokogiri (= 1.8.2)
-  sinatra (= 2.0.1)
+  sinatra (= 2.0.3)
 
 RUBY VERSION
-   ruby 2.4.1p111
+   ruby 2.5.0p0
 
 BUNDLED WITH
-   1.16.1
+   1.16.2
