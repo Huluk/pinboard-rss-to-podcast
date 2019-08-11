@@ -41,7 +41,7 @@ def parse_children(node)
 end
 
 def item_data(item)
-  attributes = parse_children(item)
+	attributes = {description: ''}.merge parse_children(item)
   attributes[:title].sub!(/^\[priv\] /, '') # remove private marker
   uri = URI(attributes[:link])
   attributes[:length] =
@@ -54,7 +54,6 @@ get '/*' do
   pinboard_response = open(Pinboard + details).read
   rss = Nokogiri::XML(pinboard_response)
   header = Header % parse_children(rss.at_xpath('//xmlns:channel'))
-  items_list = rss.at_xpath('//xmlns:items')
   elements = rss.xpath('//xmlns:items/rdf:Seq/rdf:li').map { |elem|
     audio_path = elem.attributes.values.first
     item = rss.at_xpath(%Q|//xmlns:item[@rdf:about="#{audio_path}"]|)
