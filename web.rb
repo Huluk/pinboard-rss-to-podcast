@@ -21,7 +21,7 @@ Item = <<END
     <item>
       <title>%{title}</title>
       %{optional_author}
-      <enclosure url="%{link}" length="%{length}" type="audio/mpeg"/>
+      <enclosure url="%{link}" type="audio/mpeg"/>
       <description>%{description}</description>
       <pubDate>%{date}</pubDate>
     </item>
@@ -58,8 +58,8 @@ def item_data(item)
   attributes[:title] = esc attributes[:title]
   attributes[:description] = esc attributes[:description]
   uri = URI(attributes[:link])
-  attributes[:length] =
-    Net::HTTP.new(uri.host).request_head(uri.path)['Content-Length']
+  # attributes[:length] =
+  #   Net::HTTP.new(uri.host).request_head(uri.path)['Content-Length']
   return attributes
 end
 
