@@ -1,5 +1,6 @@
 source :rubygems
-ruby "2.5.7"
-gem 'sinatra', '2.0.5'
-gem 'rack', '>= 2.0.8'
-gem 'nokogiri', '1.10.8'
+ruby "3.0.0"
+gem 'thin', '1.8.0'
+gem 'sinatra', '2.1.0'
+gem 'rack', '>= 2.2.0'
+gem 'nokogiri', '1.11.1'

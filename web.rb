@@ -1,3 +1,4 @@
+require 'cgi'
 require 'sinatra'
 require 'nokogiri'
 require 'open-uri'
@@ -19,6 +20,7 @@ END
 Item = <<END
     <item>
       <title>%{title}</title>
+      %{optional_author}
       <enclosure url="%{link}" length="%{length}" type="audio/mpeg"/>
       <description>%{description}</description>
       <pubDate>%{date}</pubDate>
@@ -31,6 +33,10 @@ Footer = <<END
 </rss>
 END
 
+def esc(str)
+  CGI.escapeHTML str
+end
+
 def parse_children(node)
   node
     .children
@@ -41,8 +47,16 @@ def parse_children(node)
 end
 
 def item_data(item)
-	attributes = {description: ''}.merge parse_children(item)
+  attributes = {description: ''}.merge parse_children(item)
   attributes[:title].sub!(/^\[priv\] /, '') # remove private marker
+  if attributes[:title] =~ /\|/
+    attributes[:title], *author = attributes[:title].split(/\s*\|\s*/)
+    attributes[:optional_author] = "<author>#{esc author.join(' | ')}</author>"
+  else
+    attributes[:optional_author] = ''
+  end
+  attributes[:title] = esc attributes[:title]
+  attributes[:description] = esc attributes[:description]
   uri = URI(attributes[:link])
   attributes[:length] =
     Net::HTTP.new(uri.host).request_head(uri.path)['Content-Length']
@@ -51,7 +65,7 @@ end
 
 get '/*' do
   details = params['splat'].join('/')
-  pinboard_response = open(Pinboard + details).read
+  pinboard_response = URI.open(Pinboard + details).read
   rss = Nokogiri::XML(pinboard_response)
   header = Header % parse_children(rss.at_xpath('//xmlns:channel'))
   elements = rss.xpath('//xmlns:items/rdf:Seq/rdf:li').map { |elem|
