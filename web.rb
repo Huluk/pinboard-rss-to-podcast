@@ -1,9 +1,10 @@
+require 'async'
 require 'cgi'
-require 'time'
-require 'sinatra'
+require 'net/http'
 require 'nokogiri'
 require 'open-uri'
-require 'net/http'
+require 'sinatra'
+require 'time'
 
 Pinboard = "https://feeds.pinboard.in/rss/"
 
@@ -20,7 +21,7 @@ Header = <<-END
 
 END
 
-Item = <<-END
+Item = <<-END.freeze
     <item>
       <title>%{title}</title>
       %{optional_author}
@@ -63,14 +64,16 @@ def item_data(item)
   else
     attributes[:optional_author] = ''
   end
-  attributes[:date] = Time.parse(attributes[:date]).strftime("%a, %e %b %Y %T %z")
+  attributes[:date] = Time.parse(attributes[:date]).strftime("%a, %e %b %Y %T %z").gsub(/\s\+/, ' ')
   attributes[:title] = esc attributes[:title]
   attributes[:description] = esc attributes[:description]
   uri = URI(attributes[:link])
-  # TODO parallelize for multiple requests
-  Net::HTTP.start(uri.host, read_timeout: LENGTH_REQUEST_TIMEOUT) { |http|
-    attributes[:length] = http.request_head(uri.path)['Content-Length']
-  }
+  begin
+    Net::HTTP.start(uri.host, read_timeout: LENGTH_REQUEST_TIMEOUT) { |http|
+      attributes[:length] = http.head(uri.path)['Content-Length']
+    }
+  rescue
+  end
   attributes[:length] ||= 1
   attributes[:link] = url_esc attributes[:link]
   return attributes
@@ -81,11 +84,15 @@ get '/*' do
   pinboard_response = URI.open(Pinboard + details).read
   rss = Nokogiri::XML(pinboard_response)
   header = Header % parse_children(rss.at_xpath('//xmlns:channel'))
-  elements = rss.xpath('//xmlns:items/rdf:Seq/rdf:li').map { |elem|
-    audio_path = elem.attributes.values.first
-    item = rss.at_xpath(%Q|//xmlns:item[@rdf:about="#{audio_path}"]|)
-    Item % item_data(item)
-  }
+  elements = Async do
+    rss.xpath('//xmlns:items/rdf:Seq/rdf:li').map { |elem|
+      audio_path = elem.attributes.values.first
+      item = rss.at_xpath(%Q|//xmlns:item[@rdf:about="#{audio_path}"]|)
+      Async do
+        Item % item_data(item)
+      end
+    }
+  end.wait.map &:wait
   headers "Content-Type" => "text/xml; charset=utf-8"
   header + elements.join("\n") + Footer
 end
