@@ -1,4 +1,5 @@
 require 'cgi'
+require 'time'
 require 'sinatra'
 require 'nokogiri'
 require 'open-uri'
@@ -62,6 +63,7 @@ def item_data(item)
   else
     attributes[:optional_author] = ''
   end
+  attributes[:date] = Time.parse(attributes[:date]).strftime("%a, %e %b %Y %T %z")
   attributes[:title] = esc attributes[:title]
   attributes[:description] = esc attributes[:description]
   uri = URI(attributes[:link])
@@ -69,6 +71,7 @@ def item_data(item)
   Net::HTTP.start(uri.host, read_timeout: LENGTH_REQUEST_TIMEOUT) { |http|
     attributes[:length] = http.request_head(uri.path)['Content-Length']
   }
+  attributes[:length] ||= 1
   attributes[:link] = url_esc attributes[:link]
   return attributes
 end
