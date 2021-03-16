@@ -10,41 +10,6 @@ Pinboard = "https://feeds.pinboard.in/rss/"
 
 LENGTH_REQUEST_TIMEOUT = 1
 
-Header = <<-END
-<?xml version="1.0" encoding="UTF-8"?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
-  <channel>
-    <title>%{title}</title>
-    <description>%{description}</description>
-    <link>%{link}</link>
-    <language>en-us</language>
-
-END
-
-Item = <<-END.freeze
-    <item>
-      <title>%{title}</title>
-      %{optional_author}
-      <enclosure url="%{link}" length="%{length}" type="audio/mpeg"/>
-      <description>%{description}</description>
-      <pubDate>%{date}</pubDate>
-    </item>
-
-END
-
-Footer = <<-END
-  </channel>
-</rss>
-END
-
-def esc(str)
-  CGI.escapeHTML str
-end
-
-def url_esc(str)
-  str.to_s.gsub(/&/, "&amp;")
-end
-
 def parse_children(node)
   node
     .children
@@ -59,14 +24,9 @@ def item_data(item)
   attributes[:title].sub!(/^\[priv\] /, '') # remove private marker
   if attributes[:title] =~ /\|/
     attributes[:title], *author = attributes[:title].split(/\s*\|\s*/)
-    author = esc author.join(' | ')
-    attributes[:optional_author] = "<itunes:author>#{author}</itunes:author>"
-  else
-    attributes[:optional_author] = ''
+    attributes[:author] = author.join(' | ')
   end
-  attributes[:date] = Time.parse(attributes[:date]).strftime("%a, %e %b %Y %T %z").gsub(/\s\+/, ' ')
-  attributes[:title] = esc attributes[:title]
-  attributes[:description] = esc attributes[:description]
+  attributes[:date] = Time.parse(attributes[:date]).strftime("%a, %-e %b %Y %T %z")
   uri = URI(attributes[:link])
   begin
     Net::HTTP.start(uri.host, read_timeout: LENGTH_REQUEST_TIMEOUT) { |http|
@@ -74,8 +34,7 @@ def item_data(item)
     }
   rescue
   end
-  attributes[:length] ||= 1
-  attributes[:link] = url_esc attributes[:link]
+  attributes[:length] ||= '1'
   return attributes
 end
 
@@ -83,16 +42,42 @@ get '/*' do
   details = params['splat'].join('/')
   pinboard_response = URI.open(Pinboard + details).read
   rss = Nokogiri::XML(pinboard_response)
-  header = Header % parse_children(rss.at_xpath('//xmlns:channel'))
+  header = parse_children(rss.at_xpath('//xmlns:channel'))
   elements = Async do
     rss.xpath('//xmlns:items/rdf:Seq/rdf:li').map { |elem|
       audio_path = elem.attributes.values.first
       item = rss.at_xpath(%Q|//xmlns:item[@rdf:about="#{audio_path}"]|)
-      Async do
-        Item % item_data(item)
-      end
+      Async { item_data(item) }
     }
   end.wait.map &:wait
   headers "Content-Type" => "text/xml; charset=utf-8"
-  header + elements.join("\n") + Footer
+
+  Nokogiri::XML::Builder.new { |xml|
+    xml.rss(
+      'xmlns:atom' => "http://www.w3.org/2005/Atom",
+      'xmlns:itunes' => "http://www.itunes.com/dtds/podcast-1.0.dtd",
+      'version' => "2.0"
+    ) {
+      xml.channel {
+        xml.title header[:title]
+        xml.description header[:description]
+        xml.link header[:link]
+        xml.language 'en-us'
+
+        elements.each do |element|
+          xml.item {
+            xml.title element[:title]
+            xml['itunes'].author element[:author] if element[:author]
+            xml.enclosure(
+              url: element[:link],
+              length: element[:length],
+              type: "audio/mpeg",
+            )
+            xml.description element[:description]
+            xml.pubDate element[:date]
+          }
+        end
+      }
+    }
+  }.to_xml
 end
