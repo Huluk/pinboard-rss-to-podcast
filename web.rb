@@ -6,6 +6,8 @@ require 'net/http'
 
 Pinboard = "https://feeds.pinboard.in/rss/"
 
+LENGTH_REQUEST_TIMEOUT = 1
+
 Header = <<-END
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -21,7 +23,7 @@ Item = <<-END
     <item>
       <title>%{title}</title>
       %{optional_author}
-      <enclosure url="%{link}" type="audio/mpeg"/>
+      <enclosure url="%{link}" length="%{length}" type="audio/mpeg"/>
       <description>%{description}</description>
       <pubDate>%{date}</pubDate>
     </item>
@@ -55,16 +57,19 @@ def item_data(item)
   attributes[:title].sub!(/^\[priv\] /, '') # remove private marker
   if attributes[:title] =~ /\|/
     attributes[:title], *author = attributes[:title].split(/\s*\|\s*/)
-    attributes[:optional_author] = "<author>#{esc author.join(' | ')}</author>"
+    author = esc author.join(' | ')
+    attributes[:optional_author] = "<itunes:author>#{author}</itunes:author>"
   else
     attributes[:optional_author] = ''
   end
   attributes[:title] = esc attributes[:title]
   attributes[:description] = esc attributes[:description]
+  uri = URI(attributes[:link])
+  # TODO parallelize for multiple requests
+  Net::HTTP.start(uri.host, read_timeout: LENGTH_REQUEST_TIMEOUT) { |http|
+    attributes[:length] = http.request_head(uri.path)['Content-Length']
+  }
   attributes[:link] = url_esc attributes[:link]
-  # uri = URI(attributes[:link])
-  # attributes[:length] =
-  #   Net::HTTP.new(uri.host).request_head(uri.path)['Content-Length']
   return attributes
 end
 
@@ -78,6 +83,6 @@ get '/*' do
     item = rss.at_xpath(%Q|//xmlns:item[@rdf:about="#{audio_path}"]|)
     Item % item_data(item)
   }
-  headers "Content-Type" => "text/xml"
+  headers "Content-Type" => "text/xml; charset=utf-8"
   header + elements.join("\n") + Footer
 end
