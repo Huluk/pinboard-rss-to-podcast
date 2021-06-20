@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
+  <channel>
+    <title><%= h title %></title>
+    <link><%= h url %></link>
+    <description><%= h description %></description>
+    <itunes:summary><%= h description %></itunes:summary>
+  <% elements.each { |element| %>
+    <item>
+      <title><%= h element[:title] %></title>
+    <% if element.has_key? :author %>
+      <itunes:author><%= element[:author] %></itunes:author>
+    <% end %>
+      <enclosure url="<%= element[:link].sub(/\?.*/, '') %>" length="<%= element[:length] %>" type="audio/mp3"/>
+      <link><%= element[:link].sub(/\?.*/, '') %></link>
+      <%# <guid isPermaLink="false"><%= element[:uuid] %1></guid> %>
+      <pubDate><%= h element[:date] %></pubDate>
+      <itunes:duration><%= element[:length].to_i %></itunes:duration>
+    </item>
+  <% } %>
+  </channel>
+</rss>

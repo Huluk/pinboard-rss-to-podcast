@@ -1,14 +1,17 @@
 require 'async'
 require 'cgi'
+require 'erb'
 require 'net/http'
-require 'nokogiri'
 require 'open-uri'
+require 'nokogiri'
 require 'sinatra'
 require 'time'
 
 Pinboard = "https://feeds.pinboard.in/rss/"
 
 LENGTH_REQUEST_TIMEOUT = 1
+
+include ERB::Util # for h
 
 def parse_children(node)
   node
@@ -52,32 +55,10 @@ get '/*' do
   end.wait.map &:wait
   headers "Content-Type" => "text/xml; charset=utf-8"
 
-  Nokogiri::XML::Builder.new { |xml|
-    xml.rss(
-      'xmlns:atom' => "http://www.w3.org/2005/Atom",
-      'xmlns:itunes' => "http://www.itunes.com/dtds/podcast-1.0.dtd",
-      'version' => "2.0"
-    ) {
-      xml.channel {
-        xml.title header[:title]
-        xml.description header[:description]
-        xml.link header[:link]
-        xml.language 'en-us'
-
-        elements.each do |element|
-          xml.item {
-            xml.title element[:title]
-            xml['itunes'].author element[:author] if element[:author]
-            xml.enclosure(
-              url: element[:link],
-              length: element[:length],
-              type: "audio/mpeg",
-            )
-            xml.description element[:description]
-            xml.pubDate element[:date]
-          }
-        end
-      }
-    }
-  }.to_xml
+  erb :channel, locals: {
+    title: header[:title],
+    url: header[:link],
+    description: header[:description],
+    elements: elements,
+  }
 end
